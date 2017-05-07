@@ -118,8 +118,8 @@ namespace OpenXmlUtils
             // variables
             var numCols = def.Fields.Count;
             var numRows = def.Objects.Count;
-            var az = new List<Char>(Enumerable.Range('A', 'Z' - 'A' + 1).Select(i => (Char) i).ToArray());
-            var headerCols = az.GetRange(0, numCols);
+            var az = GenerateAAZZ();
+            var headerCols = az.Take(numCols).ToList();
             var hasTitleRow = def.Title != null;
             var hasSubtitleRow = def.SubTitle != null;
             var titleRowCount = hasTitleRow ? 1 + (hasSubtitleRow ? 1 : 0) : hasSubtitleRow ? 1 : 0;
@@ -147,7 +147,7 @@ namespace OpenXmlUtils
             worksheet.AppendChild(new AutoFilter
             {
                 Reference =
-                    String.Format("{0}{1}:{2}{3}", headerCols.First(), firstTableRow - 1, headerCols.Last(),
+                    string.Format("{0}{1}:{2}{3}", headerCols.First(), firstTableRow - 1, headerCols.Last(),
                         numRows + titleRowCount + 1)
             });
 
@@ -156,6 +156,16 @@ namespace OpenXmlUtils
             worksheetPart.Worksheet.Save();
 
             return new Sheet { Name = def.Name, SheetId = (UInt32)sheetIndex, Id = worksheetId };
+        }
+
+        public static IEnumerable<string> GenerateAAZZ()
+        {
+            for (char c = 'A'; c <= 'Z'; c++)
+                yield return new string(c, 1);
+
+            for (char c = 'A'; c <= 'Z'; c++)
+                for (char d = 'A'; d <= 'Z'; d++)
+                    yield return new string(new[] { c, d });
         }
 
         private static double ColumnWidth(SheetData sheetData, int col, int titleRowCount)
@@ -177,7 +187,7 @@ namespace OpenXmlUtils
         }
 
         private static SheetData CreateSheetData<T>(IList< T> objects, List<SpreadsheetField> fields,
-            List<char> headerCols, bool includedTotalsRow, string sheetTitle, string sheetSubTitle,
+            List<string> headerCols, bool includedTotalsRow, string sheetTitle, string sheetSubTitle,
             out int firstTableRow)
         {
             var sheetData = new SheetData();
@@ -225,7 +235,7 @@ namespace OpenXmlUtils
             return sheetData;
         }
 
-        private static Row CreateTitle(string title, List<char> headerCols, ref int rowIndex)
+        private static Row CreateTitle(string title, List<string> headerCols, ref int rowIndex)
         {
             var header = new Row {RowIndex = (uint) rowIndex, Height = 40, CustomHeight = true};
             var c = new TextCell(headerCols[0].ToString(), title, rowIndex)
@@ -237,7 +247,7 @@ namespace OpenXmlUtils
             return header;
         }
 
-        private static Row CreateSubTitle(string title, List<char> headerCols, ref int rowIndex)
+        private static Row CreateSubTitle(string title, List<string> headerCols, ref int rowIndex)
         {
             var header = new Row { RowIndex = (uint)rowIndex, Height = 28, CustomHeight = true };
 
@@ -250,7 +260,7 @@ namespace OpenXmlUtils
             return header;
         }
 
-        private static Row CreateHeader(IList<string> headerNames, List<char> headerCols, ref int rowIndex)
+        private static Row CreateHeader(IList<string> headerNames, List<string> headerCols, ref int rowIndex)
         {
             var header = new Row {RowIndex = (uint) rowIndex};
 
@@ -266,7 +276,7 @@ namespace OpenXmlUtils
         }
 
         private static void CreateTable<T>(IList<T> objects, ref int rowIndex, int numCols,
-            List<SpreadsheetField> fields, List<char> headers, SheetData sheetData, bool hidden=false, int outline=0)
+            List<SpreadsheetField> fields, List<string> headers, SheetData sheetData, bool hidden=false, int outline=0)
         {
             // for each object
             foreach (var rowObj in objects)
@@ -323,7 +333,7 @@ namespace OpenXmlUtils
             }
         }
 
-        private static Cell CreateHyperlinkCell<T>(int rowIndex, List<char> headers, object columnObj, object displayColumnObj, int col)
+        private static Cell CreateHyperlinkCell<T>(int rowIndex, List<string> headers, object columnObj, object displayColumnObj, int col)
         {
             return new FormulaCell(headers[col].ToString(),
                 String.Format(@"HYPERLINK(""{0}"", ""{1}"")", columnObj, displayColumnObj), rowIndex)
@@ -332,7 +342,7 @@ namespace OpenXmlUtils
             };
         }
 
-        private static Cell CreateDecimalNumberCell<T>(int rowIndex, List<char> headers, object columnObj, int decimalPlaces, int col)
+        private static Cell CreateDecimalNumberCell<T>(int rowIndex, List<string> headers, object columnObj, int decimalPlaces, int col)
         {
             // TODO: decimal places other than 5
             return new NumberCell(headers[col].ToString(), columnObj.ToString(), rowIndex)
@@ -341,7 +351,7 @@ namespace OpenXmlUtils
             };
         }
 
-        private static Cell CreateCell<T>(int rowIndex, List<char> headers, object columnObj, int col)
+        private static Cell CreateCell<T>(int rowIndex, List<string> headers, object columnObj, int col)
         {
             Cell cell;
             if (columnObj is string)
@@ -350,12 +360,12 @@ namespace OpenXmlUtils
             }
             else if (columnObj is bool)
             {
-                var value = (bool) columnObj ? "Yes" : "No";
+                var value = (bool) columnObj ? "Sim" : "Não";
                 cell = new TextCell(headers[col].ToString(), value, rowIndex);
             }
             else if (columnObj is DateTime)
             {
-                cell = new DateCell(headers[col].ToString(), (DateTime) columnObj, rowIndex);
+                cell = new DateCell(headers[col].ToString(), (DateTime)columnObj, rowIndex);
             }
             else if (columnObj is TimeSpan)
             {
@@ -413,7 +423,7 @@ namespace OpenXmlUtils
 
         private static void AppendTotalsRow<T>(IList<T> objects, int rowIndex, int firstTableRow, int numCols,
             List<SpreadsheetField> fields,
-            List<char> headers,
+            List<string> headers,
             SheetData sheetData)
         {
             var fieldNames = fields.Select(f => f.FieldName).ToList();
@@ -487,7 +497,7 @@ namespace OpenXmlUtils
             sheetData.AppendChild(total);
         }
 
-        private static FormulaCell CreateRowTotalFomulaCell(int rowIndex, int firstTableRow, List<char> headers, int col, UInt32 styleIndex, bool countNonBlank = false)
+        private static FormulaCell CreateRowTotalFomulaCell(int rowIndex, int firstTableRow, List<string> headers, int col, UInt32 styleIndex, bool countNonBlank = false)
         {
             var headerCol = headers[col].ToString();
             var firstRow = headerCol + firstTableRow;
@@ -495,7 +505,7 @@ namespace OpenXmlUtils
             return CreateFormulaCell(rowIndex, headers, col, styleIndex, countNonBlank, firstRow, lastRow);
         }
 
-        private static FormulaCell CreateFormulaCell(int rowIndex, List<char> headers, int col, uint styleIndex,
+        private static FormulaCell CreateFormulaCell(int rowIndex, List<string> headers, int col, uint styleIndex,
             bool countNonBlank, string firstCell, string lastCell)
         {
             var formula = (countNonBlank ? "COUNTA" : "SUM") + "(" + firstCell + ":" + lastCell + ")";

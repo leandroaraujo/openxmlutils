@@ -22,6 +22,7 @@
 
 using System;
 using DocumentFormat.OpenXml.Spreadsheet;
+using System.Globalization;
 
 namespace OpenXmlUtils
 {
@@ -29,10 +30,12 @@ namespace OpenXmlUtils
     {
         public DateCell(string header, DateTime dateTime, int index)
         {
-            DataType = CellValues.Date;
+            var oaVAlue = dateTime.ToOADate();
+
+            DataType = CellValues.Number;
             CellReference = header + index;
-            StyleIndex = (UInt32)CustomStylesheet.CustomCellFormats.DefaultDate;
-            CellValue = new CellValue(dateTime.ToString("yyyy-MM-dd"));
+            StyleIndex = (uint)CustomStylesheet.CustomCellFormats.DefaultDateTime;
+            CellValue = new CellValue(oaVAlue.ToString(CultureInfo.InvariantCulture));
         }
     }
 }
